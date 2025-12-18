@@ -10,25 +10,29 @@ import {
   Box,
 } from '@mui/material';
 
+type OptionId = 'A' | 'B' | 'C' | 'D';
+
+type Props = {
+  question: {
+    text: string;
+    options: Array<{ id: OptionId; text: string }>;
+    optionExplanations?: Partial<Record<OptionId, string>>;
+  };
+  selectedOptionId?: OptionId | null;
+  correctOptionId: OptionId;
+  disabled?: boolean;
+  onAnswer: (optionId: OptionId) => void;
+};
+
 export function CoachQuestionCard({
   question,
   selectedOptionId,
   correctOptionId,
-  disabled,
+  disabled = false,
   onAnswer,
-}: {
-  question: {
-    text: string;
-    options: Array<{ id: 'A' | 'B' | 'C' | 'D'; text: string }>;
-    optionExplanations?: Partial<Record<'A' | 'B' | 'C' | 'D', string>>;
-  };
-  selectedOptionId?: string | null;
-  correctOptionId?: string;
-  disabled?: boolean;
-  onAnswer: (optionId: string) => void;
-}) {
+}: Props) {
   return (
-    <Card>
+    <Card variant="outlined">
       <CardContent>
         <Typography variant="overline" color="text.secondary">
           Fråga
@@ -43,17 +47,30 @@ export function CoachQuestionCard({
             const isSelected = selectedOptionId === o.id;
             const isCorrect = correctOptionId === o.id;
 
-            let color: 'default' | 'error' | 'success' = 'default';
+            let color: 'default' | 'success' | 'error' = 'default';
             if (disabled && isCorrect) color = 'success';
             if (disabled && isSelected && !isCorrect) color = 'error';
 
             return (
-              <Box key={o.id} sx={{ mb: 1 }}>
+              <Box
+                key={o.id}
+                sx={{
+                  mb: 1,
+                  p: 1,
+                  borderRadius: 1,
+                  ...(disabled && isCorrect && {
+                    bgcolor: 'success.lighter',
+                  }),
+                  ...(disabled && isSelected && !isCorrect && {
+                    bgcolor: 'error.lighter',
+                  }),
+                }}
+              >
                 <FormControlLabel
                   value={o.id}
-                  disabled={disabled}
                   control={<Radio color={color} />}
                   label={`${o.id}. ${o.text}`}
+                  disabled={disabled}
                   onClick={() => !disabled && onAnswer(o.id)}
                 />
 
@@ -62,6 +79,7 @@ export function CoachQuestionCard({
                     variant="body2"
                     sx={{
                       ml: 4,
+                      mt: 0.5,
                       color: isCorrect ? 'success.main' : 'text.secondary',
                     }}
                   >
