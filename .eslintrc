@@ -1,0 +1,6 @@
+{
+  "extends": ["next", "next/core-web-vitals", "eslint:recommended"],
+  "rules": {
+    // Dina egna regler här om du har några
+  }
+}
