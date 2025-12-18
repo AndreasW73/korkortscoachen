@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { CoachScenarioCard } from './coach-scenario-card';
 import { CoachQuestionCard } from './coach-question-card';
 import { CoachResultCard } from './coach-result-card';
-import { AiCoachResponse, CoachQuestion, mapAiToCoachQuestion } from './mapper';
+import { CoachQuestion, mapAiToCoachQuestion } from './mapper';
 import { getNextQuestion } from './question-provider';
 
 // ------------------------------------------------------
@@ -18,60 +18,72 @@ type Props = {
   weakTopics: string[];
 };
 
+type OptionId = 'A' | 'B' | 'C' | 'D';
 
-// ------------------------------------------------------
-// API
-
-
-
-// ------------------------------------------------------
 // Component
 // ------------------------------------------------------
 
 export function CoachFlow({ onAnswerEvaluated, weakTopics }: Props) {
   const [question, setQuestion] = useState<CoachQuestion | null>(null);
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<OptionId | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+  const [lastTimeMs, setLastTimeMs] = useState<number | null>(null);
+
 
   const mode = (process.env.NEXT_PUBLIC_COACH_MODE ?? 'auto') as 'ai' | 'mock' | 'auto';
-
+  const initialTopic = weakTopics[0] ?? 'väjningsplikt';
 
   // initial load
 useEffect(() => {
+  let cancelled = false;
+
   getNextQuestion({
     topicFallback: 'väjningsplikt',
-    weakTopics: [],
+    weakTopics,
     difficulty: 2,
-    mode: mode,
+    mode,
   }).then((data) => {
-    setQuestion(mapAiToCoachQuestion(data, 'väjningsplikt'));
+    if (cancelled) return;
+
+    const mapped = mapAiToCoachQuestion(data, 'väjningsplikt');
+    setQuestion(mapped);
+    setQuestionStartTime(Date.now());
   });
+
+  return () => {
+    cancelled = true;
+  };
 }, []);
 
 
-  const onAnswer = useCallback(
-    (optionId: string) => {
-      if (!question) return;
 
-      setSelectedOptionId(optionId);
-      setShowResult(true);
 
-      const isCorrect = optionId === question.question.correctOptionId;
-      setLastCorrect(isCorrect);
+const onAnswer = useCallback(
+  (optionId: OptionId) => {
+    if (!question || !questionStartTime) return;
 
-      // 🔑 Rapportera uppåt
-      onAnswerEvaluated(question.topic, isCorrect);
-    },
-    [question, onAnswerEvaluated]
-  );
+    const elapsedMs = Date.now() - questionStartTime;
+    setLastTimeMs(elapsedMs);
+
+    setSelectedOptionId(optionId);
+    setShowResult(true);
+
+    const isCorrect = optionId === question.question.correctOptionId;
+    setLastCorrect(isCorrect);
+
+    onAnswerEvaluated(question.topic, isCorrect);
+  },
+  [question, questionStartTime, onAnswerEvaluated]
+);
+
 
 const handleNextQuestion = useCallback(async () => {
-  console.log('NEXT QUESTION CLICKED');
-
   setSelectedOptionId(null);
   setShowResult(false);
   setLastCorrect(null);
+  setLastTimeMs(null);
 
   const topic = question?.topic ?? 'väjningsplikt';
 
@@ -82,11 +94,11 @@ const handleNextQuestion = useCallback(async () => {
     mode: mode,
   });
 
-  console.log('NEW DATA', data);
-
   const mapped = mapAiToCoachQuestion(data, topic);
   setQuestion(mapped);
+  setQuestionStartTime(Date.now()); // ⏱️ restart
 }, [question, weakTopics]);
+
 
   if (!question) return null;
 
@@ -106,13 +118,15 @@ const handleNextQuestion = useCallback(async () => {
         onAnswer={onAnswer}
       />
 
-      {showResult && lastCorrect !== null && (
-        <CoachResultCard
-          correct={lastCorrect}
-          explanation={question.question.explanation}
-          onContinue={handleNextQuestion}
-        />
-      )}
+     {showResult && lastCorrect !== null && (
+      <CoachResultCard
+        correct={lastCorrect}
+        explanation={question.question.explanation}
+        timeMs={lastTimeMs ?? undefined}
+        onContinue={handleNextQuestion}
+      />
+)}
+
     </Stack>
   );
 }

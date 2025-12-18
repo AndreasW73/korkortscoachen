@@ -5,10 +5,16 @@ import { Card, CardContent, Stack, Typography, Button } from '@mui/material';
 type Props = {
   correct: boolean;
   explanation: string;
+  timeMs?: number | null;
   onContinue: () => void | Promise<void>;
 };
 
-export function CoachResultCard({ correct, explanation, onContinue }: Props) {
+export function CoachResultCard({
+  correct,
+  explanation,
+  timeMs,
+  onContinue,
+}: Props) {
   return (
     <Card variant="outlined">
       <CardContent>
@@ -16,6 +22,12 @@ export function CoachResultCard({ correct, explanation, onContinue }: Props) {
           <Typography variant="h6" color={correct ? 'success.main' : 'error.main'}>
             {correct ? 'Rätt!' : 'Fel'}
           </Typography>
+
+          {timeMs != null && (
+            <Typography variant="caption" color="text.secondary">
+              Tid: {(timeMs / 1000).toFixed(1)} sekunder
+            </Typography>
+          )}
 
           <Typography variant="body2" color="text.secondary">
             {explanation}
