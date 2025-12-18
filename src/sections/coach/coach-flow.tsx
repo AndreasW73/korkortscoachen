@@ -1,6 +1,6 @@
 'use client';
 
-import { Stack } from '@mui/material';
+import { Stack, Button } from '@mui/material';
 import { useEffect, useState, useCallback } from 'react';
 
 import { CoachScenarioCard } from './coach-scenario-card';
@@ -10,95 +10,95 @@ import { CoachQuestion, mapAiToCoachQuestion } from './mapper';
 import { getNextQuestion } from './question-provider';
 
 // ------------------------------------------------------
-// Props
+// Types
 // ------------------------------------------------------
 
+type CoachMode = 'practice' | 'exam';
+type OptionId = 'A' | 'B' | 'C' | 'D';
+
 type Props = {
-  onAnswerEvaluated: (topic: string, isCorrect: boolean) => void;
+  mode?: CoachMode;
+  onAnswerEvaluated: (topic: string, isCorrect: boolean, timeMs: number) => void;
   weakTopics: string[];
 };
 
-type OptionId = 'A' | 'B' | 'C' | 'D';
-
+// ------------------------------------------------------
 // Component
 // ------------------------------------------------------
 
-export function CoachFlow({ onAnswerEvaluated, weakTopics }: Props) {
+export function CoachFlow({ mode = 'practice', onAnswerEvaluated, weakTopics }: Props) {
   const [question, setQuestion] = useState<CoachQuestion | null>(null);
+
   const [selectedOptionId, setSelectedOptionId] = useState<OptionId | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+
   const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
   const [lastTimeMs, setLastTimeMs] = useState<number | null>(null);
 
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
 
-  const mode = (process.env.NEXT_PUBLIC_COACH_MODE ?? 'auto') as 'ai' | 'mock' | 'auto';
-  const initialTopic = weakTopics[0] ?? 'väjningsplikt';
+  const apiMode = (process.env.NEXT_PUBLIC_COACH_MODE ?? 'auto') as 'ai' | 'mock' | 'auto';
+
+  const loadQuestion = useCallback(
+    async (topicFallback: string) => {
+      const data = await getNextQuestion({
+        topicFallback,
+        weakTopics,
+        difficulty: 2,
+        mode: apiMode,
+      });
+
+      const mapped = mapAiToCoachQuestion(data, topicFallback);
+      setQuestion(mapped);
+      setQuestionStartTime(Date.now());
+    },
+    [weakTopics, apiMode]
+  );
 
   // initial load
-useEffect(() => {
-  let cancelled = false;
+  useEffect(() => {
+    void loadQuestion(weakTopics[0] ?? 'väjningsplikt');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  getNextQuestion({
-    topicFallback: 'väjningsplikt',
-    weakTopics,
-    difficulty: 2,
-    mode,
-  }).then((data) => {
-    if (cancelled) return;
+  const handleNextQuestion = useCallback(async () => {
+    if (isLoadingNext) return;
 
-    const mapped = mapAiToCoachQuestion(data, 'väjningsplikt');
-    setQuestion(mapped);
-    setQuestionStartTime(Date.now());
-  });
+    setIsLoadingNext(true);
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    // reset UI state
+    setSelectedOptionId(null);
+    setShowResult(false);
+    setLastCorrect(null);
+    setLastTimeMs(null);
 
+    try {
+      const topicFallback = question?.topic ?? weakTopics[0] ?? 'väjningsplikt';
+      await loadQuestion(topicFallback);
+    } finally {
+      setIsLoadingNext(false);
+    }
+  }, [isLoadingNext, question?.topic, weakTopics, loadQuestion]);
 
+  const onAnswer = useCallback(
+    (optionId: OptionId) => {
+      if (!question || !questionStartTime || isLoadingNext) return;
 
+      const elapsedMs = Date.now() - questionStartTime;
+      setLastTimeMs(elapsedMs);
 
-const onAnswer = useCallback(
-  (optionId: OptionId) => {
-    if (!question || !questionStartTime) return;
+      // lock the answer
+      setSelectedOptionId(optionId);
+      setShowResult(true);
 
-    const elapsedMs = Date.now() - questionStartTime;
-    setLastTimeMs(elapsedMs);
+      const isCorrect = optionId === question.question.correctOptionId;
+      setLastCorrect(isCorrect);
 
-    setSelectedOptionId(optionId);
-    setShowResult(true);
-
-    const isCorrect = optionId === question.question.correctOptionId;
-    setLastCorrect(isCorrect);
-
-    onAnswerEvaluated(question.topic, isCorrect);
-  },
-  [question, questionStartTime, onAnswerEvaluated]
-);
-
-
-const handleNextQuestion = useCallback(async () => {
-  setSelectedOptionId(null);
-  setShowResult(false);
-  setLastCorrect(null);
-  setLastTimeMs(null);
-
-  const topic = question?.topic ?? 'väjningsplikt';
-
-  const data = await getNextQuestion({
-    topicFallback: topic,
-    weakTopics,
-    difficulty: 2,
-    mode: mode,
-  });
-
-  const mapped = mapAiToCoachQuestion(data, topic);
-  setQuestion(mapped);
-  setQuestionStartTime(Date.now()); // ⏱️ restart
-}, [question, weakTopics]);
-
+      onAnswerEvaluated(question.topic, isCorrect, elapsedMs);
+    },
+    [question, questionStartTime, isLoadingNext, onAnswerEvaluated]
+  );
 
   if (!question) return null;
 
@@ -114,19 +114,27 @@ const handleNextQuestion = useCallback(async () => {
         question={question.question}
         selectedOptionId={selectedOptionId}
         correctOptionId={question.question.correctOptionId}
-        disabled={showResult}
+        disabled={showResult || isLoadingNext}
+        revealAnswer={mode !== 'exam'}
         onAnswer={onAnswer}
       />
 
-     {showResult && lastCorrect !== null && (
-      <CoachResultCard
-        correct={lastCorrect}
-        explanation={question.question.explanation}
-        timeMs={lastTimeMs ?? undefined}
-        onContinue={handleNextQuestion}
-      />
-)}
+      {/* EXAM: no feedback, just "Next question" */}
+      {mode === 'exam' && showResult && (
+        <Button variant="contained" onClick={() => void handleNextQuestion()} disabled={isLoadingNext}>
+          Nästa fråga
+        </Button>
+      )}
 
+      {/* PRACTICE: show result card */}
+      {mode === 'practice' && showResult && lastCorrect !== null && (
+        <CoachResultCard
+          correct={lastCorrect}
+          explanation={question.question.explanation}
+          timeMs={lastTimeMs ?? undefined}
+          onContinue={handleNextQuestion}
+        />
+      )}
     </Stack>
   );
 }

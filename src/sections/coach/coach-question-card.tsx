@@ -12,7 +12,14 @@ import {
 
 type OptionId = 'A' | 'B' | 'C' | 'D';
 
-type Props = {
+export function CoachQuestionCard({
+  question,
+  selectedOptionId,
+  correctOptionId,
+  disabled = false,
+  revealAnswer = true,
+  onAnswer,
+}: {
   question: {
     text: string;
     options: Array<{ id: OptionId; text: string }>;
@@ -21,16 +28,9 @@ type Props = {
   selectedOptionId?: OptionId | null;
   correctOptionId: OptionId;
   disabled?: boolean;
+  revealAnswer?: boolean;
   onAnswer: (optionId: OptionId) => void;
-};
-
-export function CoachQuestionCard({
-  question,
-  selectedOptionId,
-  correctOptionId,
-  disabled = false,
-  onAnswer,
-}: Props) {
+}) {
   return (
     <Card variant="outlined">
       <CardContent>
@@ -42,14 +42,14 @@ export function CoachQuestionCard({
           {question.text}
         </Typography>
 
-        <RadioGroup value={selectedOptionId}>
+        <RadioGroup value={selectedOptionId ?? ''}>
           {question.options.map((o) => {
             const isSelected = selectedOptionId === o.id;
             const isCorrect = correctOptionId === o.id;
 
-            let color: 'default' | 'success' | 'error' = 'default';
-            if (disabled && isCorrect) color = 'success';
-            if (disabled && isSelected && !isCorrect) color = 'error';
+            let color: 'default' | 'error' | 'success' = 'default';
+            if (disabled && revealAnswer && isCorrect) color = 'success';
+            if (disabled && revealAnswer && isSelected && !isCorrect) color = 'error';
 
             return (
               <Box
@@ -58,23 +58,28 @@ export function CoachQuestionCard({
                   mb: 1,
                   p: 1,
                   borderRadius: 1,
-                  ...(disabled && isCorrect && {
-                    bgcolor: 'success.lighter',
-                  }),
-                  ...(disabled && isSelected && !isCorrect && {
-                    bgcolor: 'error.lighter',
-                  }),
+                  ...(disabled &&
+                    revealAnswer &&
+                    isCorrect && {
+                      bgcolor: 'success.lighter',
+                    }),
+                  ...(disabled &&
+                    revealAnswer &&
+                    isSelected &&
+                    !isCorrect && {
+                      bgcolor: 'error.lighter',
+                    }),
                 }}
               >
                 <FormControlLabel
                   value={o.id}
+                  disabled={disabled}
                   control={<Radio color={color} />}
                   label={`${o.id}. ${o.text}`}
-                  disabled={disabled}
                   onClick={() => !disabled && onAnswer(o.id)}
                 />
 
-                {disabled && question.optionExplanations?.[o.id] && (
+                {disabled && revealAnswer && question.optionExplanations?.[o.id] && (
                   <Typography
                     variant="body2"
                     sx={{
