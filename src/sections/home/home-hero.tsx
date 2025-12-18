@@ -32,7 +32,7 @@ export function HomeHero({ sx, ...other }: BoxProps) {
                 rgba(0,0,0,0.15) 100%
               )`,
               // Byt till din Körkortscoachen-hero (lägg gärna i samma assets/background-mapp)
-              `url(${CONFIG.assetsDir}/assets/background/hero-körkortscoachen.jpg)`,
+              `url(${CONFIG.assetsDir}/assets/background/hero-background.jpg)`,
             ],
           }),
           height: { md: 560 },

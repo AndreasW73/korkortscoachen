@@ -1,11 +1,18 @@
+import { MOCK_QUESTIONS_BY_TOPIC } from './mock-questions';
 import type { AiCoachResponse } from './mapper';
-import { MOCK_QUESTIONS } from './mock-questions';
 
-let mockIndex = 0;
+const topicIndex: Record<string, number> = {};
 
-function pickMockSequential(): AiCoachResponse {
-  const q = MOCK_QUESTIONS[mockIndex % MOCK_QUESTIONS.length];
-  mockIndex++;
+function pickMockByTopic(topic: string): AiCoachResponse {
+  const list =
+    MOCK_QUESTIONS_BY_TOPIC[topic] ??
+    Object.values(MOCK_QUESTIONS_BY_TOPIC).flat();
+
+  if (!topicIndex[topic]) topicIndex[topic] = 0;
+
+  const q = list[topicIndex[topic] % list.length];
+  topicIndex[topic]++;
+
   return q;
 }
 
@@ -15,11 +22,12 @@ export async function getNextQuestion(params: {
   difficulty: number;
   mode?: 'ai' | 'mock' | 'auto';
 }): Promise<AiCoachResponse> {
-  const { mode = 'auto' } = params;
+  const { mode = 'auto', weakTopics, topicFallback } = params;
 
-  if (mode === 'mock') {
-    return pickMockSequential();
-  }
+ if (mode === 'mock') {
+  const topic = weakTopics.find(Boolean) ?? topicFallback;
+  return pickMockByTopic(topic);
+}
 
   if (mode === 'ai') {
     const res = await fetch('/api/coach/question', {
@@ -43,6 +51,7 @@ export async function getNextQuestion(params: {
     if (!res.ok) throw new Error('AI failed');
     return res.json();
   } catch {
-    return pickMockSequential();
+    const topic = weakTopics[0] ?? topicFallback;
+    return pickMockByTopic(topic);
   }
 }

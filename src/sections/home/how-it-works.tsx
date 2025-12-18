@@ -53,7 +53,7 @@ export function HowItWorks({
   caption = 'Så fungerar det',
  title = 'Så funkar det',
 txtGradient = 'Tre steg till provklar',
-  imageSrc = `${CONFIG.assetsDir}/assets/background/hero-körkortscoachen.jpg`,
+  imageSrc = `${CONFIG.assetsDir}/assets/background/hero-background.jpg`,
   // Alternativ om du inte har egen asset ännu:
   // imageSrc = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1920&auto=format&fit=crop',
   imageAlt = 'Körkortscoachen flöde',
