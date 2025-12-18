@@ -127,7 +127,7 @@ export function HomeHero({ sx, ...other }: BoxProps) {
                 Börja träna gratis
               </Button>
 
-              <Button
+              {/* <Button
                 variant="outlined"
                 size="large"
                 component={Link}
@@ -142,7 +142,7 @@ export function HomeHero({ sx, ...other }: BoxProps) {
                 }}
               >
                 Så funkar det
-              </Button>
+              </Button> */}
             </Stack>
           </m.div>
 
