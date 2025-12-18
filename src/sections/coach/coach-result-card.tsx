@@ -1,38 +1,31 @@
-import { Alert, AlertTitle, Button, Typography } from '@mui/material';
+'use client';
+
+import { Card, CardContent, Stack, Typography, Button } from '@mui/material';
 
 type Props = {
   correct: boolean;
   explanation: string;
-  onContinue: () => void;
+  onContinue: () => void | Promise<void>;
 };
 
 export function CoachResultCard({ correct, explanation, onContinue }: Props) {
-  const title = correct ? 'Rätt svar' : 'Fel svar';
-
   return (
-    <Alert
-      severity={correct ? 'success' : 'error'}
-      variant="outlined"
-      action={
-        <Button
-          onClick={onContinue}
-          variant="contained"
-          size="small"
-          aria-label="Nästa fråga"
-        >
-          Nästa fråga
-        </Button>
-      }
-      sx={{
-        alignItems: 'flex-start',
-        '& .MuiAlert-message': { width: '100%' },
-      }}
-    >
-      <AlertTitle sx={{ mb: 0.5 }}>{title}</AlertTitle>
+    <Card variant="outlined">
+      <CardContent>
+        <Stack spacing={2}>
+          <Typography variant="h6" color={correct ? 'success.main' : 'error.main'}>
+            {correct ? 'Rätt!' : 'Fel'}
+          </Typography>
 
-      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-        {explanation}
-      </Typography>
-    </Alert>
+          <Typography variant="body2" color="text.secondary">
+            {explanation}
+          </Typography>
+
+          <Button variant="contained" onClick={() => void onContinue()}>
+            Nästa fråga
+          </Button>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }

@@ -120,7 +120,10 @@ export function CoachView() {
           needsWork={needsWork}
         />
 
-        <CoachFlow onAnswerEvaluated={updateProgress} />
+        <CoachFlow
+          onAnswerEvaluated={updateProgress}
+          weakTopics={needsWork.map((t) => t.topic)} />
+
       </Stack>
     </DashboardContent>
   );

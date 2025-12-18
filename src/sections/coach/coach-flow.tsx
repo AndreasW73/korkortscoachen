@@ -7,6 +7,7 @@ import { CoachScenarioCard } from './coach-scenario-card';
 import { CoachQuestionCard } from './coach-question-card';
 import { CoachResultCard } from './coach-result-card';
 import { AiCoachResponse, CoachQuestion, mapAiToCoachQuestion } from './mapper';
+import { getNextQuestion } from './question-provider';
 
 // ------------------------------------------------------
 // Props
@@ -14,46 +15,40 @@ import { AiCoachResponse, CoachQuestion, mapAiToCoachQuestion } from './mapper';
 
 type Props = {
   onAnswerEvaluated: (topic: string, isCorrect: boolean) => void;
+  weakTopics: string[];
 };
+
 
 // ------------------------------------------------------
 // API
-// ------------------------------------------------------
 
-async function fetchNextQuestion(topic: string): Promise<AiCoachResponse> {
-  const res = await fetch('/api/coach/question', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      topic,
-      difficulty: 2,
-    }),
-  });
 
-  if (!res.ok) {
-    throw new Error('Failed to fetch coach question');
-  }
-
-  return res.json();
-}
 
 // ------------------------------------------------------
 // Component
 // ------------------------------------------------------
 
-export function CoachFlow({ onAnswerEvaluated }: Props) {
+export function CoachFlow({ onAnswerEvaluated, weakTopics }: Props) {
   const [question, setQuestion] = useState<CoachQuestion | null>(null);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
 
+  const mode = (process.env.NEXT_PUBLIC_COACH_MODE ?? 'auto') as 'ai' | 'mock' | 'auto';
+
+
   // initial load
-  useEffect(() => {
-    fetchNextQuestion('väjningsplikt').then((data) => {
-      const mapped = mapAiToCoachQuestion(data, 'väjningsplikt');
-      setQuestion(mapped);
-    });
-  }, []);
+useEffect(() => {
+  getNextQuestion({
+    topicFallback: 'väjningsplikt',
+    weakTopics: [],
+    difficulty: 2,
+    mode: mode,
+  }).then((data) => {
+    setQuestion(mapAiToCoachQuestion(data, 'väjningsplikt'));
+  });
+}, []);
+
 
   const onAnswer = useCallback(
     (optionId: string) => {
@@ -71,18 +66,27 @@ export function CoachFlow({ onAnswerEvaluated }: Props) {
     [question, onAnswerEvaluated]
   );
 
-  const handleNextQuestion = useCallback(async () => {
-    setSelectedOptionId(null);
-    setShowResult(false);
-    setLastCorrect(null);
+const handleNextQuestion = useCallback(async () => {
+  console.log('NEXT QUESTION CLICKED');
 
-    // topic kan bli dynamisk senare (adaptiv AI)
-    const topic = question?.topic ?? 'väjningsplikt';
+  setSelectedOptionId(null);
+  setShowResult(false);
+  setLastCorrect(null);
 
-    const data = await fetchNextQuestion(topic);
-    const mapped = mapAiToCoachQuestion(data, topic);
-    setQuestion(mapped);
-  }, [question]);
+  const topic = question?.topic ?? 'väjningsplikt';
+
+  const data = await getNextQuestion({
+    topicFallback: topic,
+    weakTopics,
+    difficulty: 2,
+    mode: mode,
+  });
+
+  console.log('NEW DATA', data);
+
+  const mapped = mapAiToCoachQuestion(data, topic);
+  setQuestion(mapped);
+}, [question, weakTopics]);
 
   if (!question) return null;
 
